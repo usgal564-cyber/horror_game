@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Гэрээс Зугтах — Mongol Ger Escape</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0604;--bg-warm:#1A0E08;--fg:#F5E6D3;--muted:#8B7B6F;
+  --accent:#D4A017;--danger:#CC2200;--card:rgba(26,14,8,0.85);
+  --border:rgba(212,160,23,0.25);--success:#2ECC40;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden;height:100vh;width:100vw;}
+h1,h2,h3{font-family:'Playfair Display',serif;}
+
+/* Монгол хээ паттерн */
+.mongol-border{
+  border:2px solid var(--border);
+  position:relative;
+}
+.mongol-border::before{
+  content:'';position:absolute;inset:3px;
+  border:1px solid rgba(212,160,23,0.12);
+  pointer-events:none;
+}
+
+/* Экранүүд */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:10;padding:20px;}
+.screen.active{display:flex;}
+
+/* Нүүр дэлгэц */
+#loginScreen{
+  background:radial-gradient(ellipse at 50% 60%,#1A0E08 0%,#0A0604 70%);
+}
+.login-box{
+  max-width:520px;width:100%;text-align:center;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:40px 30px;
+  backdrop-filter:blur(10px);
+  box-shadow:0 0 80px rgba(212,160,23,0.08),0 0 200px rgba(139,0,0,0.05);
+}
+.login-box h1{
+  font-size:clamp(28px,5vw,42px);font-weight:900;
+  color:var(--accent);letter-spacing:2px;margin-bottom:6px;
+  text-shadow:0 0 30px rgba(212,160,23,0.3);
+}
+.login-box .subtitle{
+  color:var(--muted);font-size:14px;margin-bottom:30px;line-height:1.6;
+}
+#nicknameInput{
+  width:100%;padding:14px 18px;border-radius:10px;
+  border:1px solid var(--border);background:rgba(10,6,4,0.8);
+  color:var(--fg);font-size:16px;outline:none;
+  transition:border-color .3s;margin-bottom:24px;
+}
+#nicknameInput:focus{border-color:var(--accent);}
+#nicknameInput::placeholder{color:var(--muted);}
+
+.avatar-label{color:var(--muted);font-size:13px;margin-bottom:12px;text-align:left;}
+.avatar-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px;}
+.avatar-card{
+  padding:14px 8px;border-radius:12px;border:2px solid transparent;
+  background:rgba(20,12,6,0.8);cursor:pointer;transition:all .25s;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.avatar-card:hover{border-color:var(--border);transform:translateY(-2px);}
+.avatar-card.selected{border-color:var(--accent);box-shadow:0 0 20px rgba(212,160,23,0.2);}
+.avatar-card .av-icon{font-size:28px;transition:transform .3s;}
+.avatar-card:hover .av-icon{transform:scale(1.15);}
+.avatar-card .av-name{font-size:11px;color:var(--muted);white-space:nowrap;}
+
+.btn-primary{
+  width:100%;padding:16px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,#D4A017,#B8860B);
+  color:#0A0604;font-size:17px;font-weight:700;cursor:pointer;
+  letter-spacing:1px;transition:all .3s;
+  font-family:'Playfair Display',serif;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(212,160,23,0.3);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* Тоглоомын дэлгэц */
+#gameScreen{background:var(--bg);padding:0;}
+#bgCanvas{position:fixed;inset:0;z-index:0;}
+
+.game-header{
+  position:relative;z-index:2;width:100%;max-width:700px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;
+}
+.level-badge{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:8px 16px;font-size:14px;
+  font-family:'Playfair Display',serif;color:var(--accent);
+}
+.lives-display{display:flex;gap:6px;}
+.heart{font-size:22px;color:var(--danger);transition:all .3s;}
+.heart.lost{color:#333;transform:scale(0.8);}
+.player-info{
+  display:flex;align-items:center;gap:8px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:6px 14px 6px 8px;
+}
+.player-avatar-mini{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.player-nick{font-size:13px;color:var(--muted);}
+
+.game-content{
+  position:relative;z-index:2;width:100%;max-width:600px;
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:0 20px 30px;gap:20px;
+}
+.level-title{
+  font-size:clamp(22px,4vw,32px);font-weight:900;
+  color:var(--accent);text-align:center;
+  text-shadow:0 0 20px rgba(212,160,23,0.2);
+}
+.level-story{
+  text-align:center;color:var(--fg);font-size:15px;
+  line-height:1.7;opacity:0.9;max-width:500px;
+}
+.options-container{display:flex;flex-direction:column;gap:12px;width:100%;max-width:460px;}
+.option-btn{
+  padding:16px 20px;border-radius:12px;border:1px solid var(--border);
+  background:var(--card);color:var(--fg);font-size:15px;
+  cursor:pointer;transition:all .25s;text-align:left;
+  display:flex;align-items:center;gap:12px;
+  backdrop-filter:blur(5px);
+}
+.option-btn:hover:not(:disabled){
+  border-color:var(--accent);background:rgba(212,160,23,0.08);
+  transform:translateX(6px);
+}
+.option-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none !important;}
+.option-btn .opt-num{
+  width:30px;height:30px;border-radius:50%;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--accent);flex-shrink:0;
+  font-family:'Playfair Display',serif;
+}
+.option-btn.correct{border-color:var(--success);background:rgba(46,204,64,0.1);animation:correctPulse .5s;}
+.option-btn.wrong{border-color:var(--danger);background:rgba(204,34,0,0.1);animation:wrongShake .4s;}
+
+@keyframes correctPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.02);}}
+@keyframes wrongShake{0%,100%{transform:translateX(0);}20%{transform:translateX(-10px);}40%{transform:translateX(10px);}60%{transform:translateX(-6px);}80%{transform:translateX(6px);}}
+
+.hint-text{font-size:12px;color:var(--muted);text-align:center;opacity:0.7;}
+
+/* Жампскейр */
+#jumpscareOverlay{
+  position:fixed;inset:0;z-index:100;display:none;
+  align-items:center;justify-content:center;
+}
+#jumpscareOverlay.active{display:flex;}
+#flashDiv{
+  position:fixed;inset:0;background:#fff;z-index:99;
+  display:none;animation:flashAnim .15s ease-out;
+}
+@keyframes flashAnim{0%{opacity:1;}100%{opacity:0;}}
+#jumpscareCanvas{position:fixed;inset:0;z-index:100;}
+.shake{animation:shakeAnim .1s infinite;}
+@keyframes shakeAnim{
+  0%{transform:translate(0,0);}
+  25%{transform:translate(-15px,10px);}
+  50%{transform:translate(15px,-10px);}
+  75%{transform:translate(-10px,15px);}
+  100%{transform:translate(10px,-15px);}
+}
+
+/* Game Over */
+#gameOverScreen{background:rgba(10,6,4,0.95);z-index:50;}
+#gameOverScreen .go-box{
+  text-align:center;max-width:420px;
+}
+#gameOverScreen h2{font-size:48px;color:var(--danger);margin-bottom:12px;}
+#gameOverScreen p{color:var(--muted);margin-bottom:30px;font-size:15px;}
+.btn-secondary{
+  padding:14px 40px;border:1px solid var(--border);border-radius:12px;
+  background:transparent;color:var(--fg);font-size:15px;cursor:pointer;
+  transition:all .3s;font-family:'Playfair Display',serif;
+}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent);}
+
+/* Ялалт */
+#victoryScreen{background:rgba(10,6,4,0.95);z-index:50;}
+#victoryScreen .v-box{text-align:center;max-width:480px;}
+#victoryScreen h2{font-size:44px;color:var(--accent);margin-bottom:12px;}
+#victoryScreen p{color:var(--muted);margin-bottom:8px;font-size:15px;}
+.victory-stats{
+  display:flex;gap:30px;justify-content:center;margin:24px 0 30px;
+}
+.stat-item{text-align:center;}
+.stat-val{font-size:32px;font-weight:900;color:var(--accent);font-family:'Playfair Display',serif;}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* Түр хүлээлгийн мэдэгдэл */
+.warning-msg{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+  z-index:20;background:rgba(204,34,0,0.15);border:1px solid rgba(204,34,0,0.3);
+  border-radius:10px;padding:10px 20px;color:#ff6b6b;font-size:13px;
+  display:none;animation:fadeInUp .3s;
+}
+.warning-msg.show{display:block;}
+@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+
+/* Responsive */
+@media(max-width:500px){
+  .login-box{padding:28px 18px;}
+  .avatar-grid{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .avatar-card{padding:10px 4px;}
+  .avatar-card .av-icon{font-size:22px;}
+  .game-header{padding:10px 14px;}
+  .option-btn{padding:13px 16px;font-size:14px;}
+  .victory-stats{gap:18px;}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:0.01ms !important;transition-duration:0.01ms !important;}
+}
+</style>
+</head>
+<body>
+
+<!-- Нүүр дэлгэц -->
+<div id="loginScreen" class="screen active">
+  <div class="login-box mongol-border">
+    <h1>Гэрээс Зугтах</h1>
+    <p class="subtitle">Та мөхөлдөө хүргэх хараалттай монгол гэрт орж төрөв.<br>20 түвшний нууцыг тайлаж, амьд үлдэж зугтах хэрэгтэй.</p>
+    <input type="text" id="nicknameInput" placeholder="Таны хоч нэр..." maxlength="16" autocomplete="off">
+    <p class="avatar-label">Аватар сонгох (Avengers)</p>
+    <div class="avatar-grid" id="avatarGrid"></div>
+    <button class="btn-primary" id="startBtn" disabled>Тоглоом эхлүүлэх</button>
+  </div>
+</div>
+
+<!-- Тоглоомын дэлгэц -->
+<div id="gameScreen" class="screen">
+  <canvas id="bgCanvas"></canvas>
+  <div class="game-header">
+    <div class="level-badge" id="levelBadge">Түвшин 1/20</div>
+    <div class="player-info">
+      <div class="player-avatar-mini" id="miniAvatar"></div>
+      <span class="player-nick" id="miniNick"></span>
+    </div>
+    <div class="lives-display" id="livesDisplay"></div>
+  </div>
+  <div class="game-content">
+    <h2 class="level-title" id="levelTitle"></h2>
+    <p class="level-story" id="levelStory"></p>
+    <div class="options-container" id="optionsContainer"></div>
+    <p class="hint-text" id="hintText"></p>
+  </div>
+  <div class="warning-msg" id="warningMsg"></div>
+</div>
+
+<!-- Жампскейр -->
+<div id="jumpscareOverlay">
+  <div id="flashDiv"></div>
+  <canvas id="jumpscareCanvas"></canvas>
+</div>
+
+<!-- Game Over -->
+<div id="gameOverScreen" class="screen">
+  <div class="go-box">
+    <h2>АМИАД ХАРААГДАВ</h2>
+    <p id="goText">Та гэрээс зугтахадж чадсангүй...</p>
+    <button class="btn-secondary" id="retryBtn">Дахин оролдох</button>
+  </div>
+</div>
+
+<!-- Ялалт -->
+<div id="victoryScreen" class="screen">
+  <div class="v-box">
+    <h2>ЗУГТАЖ ЧАДЛАА</h2>
+    <p>Та хараалттай гэрээс амжилттай зугтав!</p>
+    <div class="victory-stats">
+      <div class="stat-item"><div class="stat-val" id="statLevel">20</div><div class="stat-label">Түвшин</div></div>
+      <div class="stat-item"><div class="stat-val" id="statLives">3</div><div class="stat-label">Амь</div></div>
+      <div class="stat-item"><div class="stat-val" id="statWrong">0</div><div class="stat-label">Буруу</div></div>
+    </div>
+    <button class="btn-secondary" id="playAgainBtn">Дахин тоглох</button>
+  </div>
+</div>
+
+<script>
+/* ===== АВАТАР ДАННЫ ===== */
+const avatars = [
+  { id:'ironman', name:'Iron Man', icon:'fa-bolt', color:'#B91C1C', bg:'#2A0A0A' },
+  { id:'cap', name:'Captain America', icon:'fa-shield-halved', color:'#1E40AF', bg:'#0A0A2A' },
+  { id:'thor', name:'Thor', icon:'fa-bolt-lightning', color:'#6366F1', bg:'#0F0A2A' },
+  { id:'hulk', name:'Hulk', icon:'fa-hand-fist', color:'#15803D', bg:'#0A2A0F' },
+  { id:'widow', name:'Black Widow', icon:'fa-spider', color:'#EF4444', bg:'#2A0A0F' },
+  { id:'hawk', name:'Hawkeye', icon:'fa-bullseye', color:'#7C3AED', bg:'#1A0A2A' }
+];
+
+/* ===== 20 ТҮВШНИЙ ДАННЫ ===== */
+const levels = [
+  {
+    title:"Монгол гэрийн хэлбэр",
+    story:"Монгол гэр ямар хэлбэртэй вэ?",
+    options:["Дөрвөлжин","Дугуй","Гурвалжин"],
+    correct:1, delay:3000
+  },
+  {
+    title:"Тооно",
+    story:"Гэрийн хамгийн дээд талын дугуй модон хэсгийг юу гэдэг вэ?",
+    options:["Тооно","Багана","Хаалга"],
+    correct:0, delay:3500
+  },
+  {
+    title:"Хаалганы зүг",
+    story:"Монгол гэрийн хаалга ихэвчлэн аль зүг рүү хардаг вэ?",
+    options:["Өмнө зүг","Хойд зүг","Баруун зүг"],
+    correct:0, delay:2800
+  },
+  {
+    title:"Ханын нэр",
+    story:"Гэрийн ханыг юу гэж нэрлэдэг вэ?",
+    options:["Унь","Хана","Тооно"],
+    correct:1, delay:3200
+  },
+  {
+    title:"Унь",
+    story:"Тоононоос хана руу холбодог урт модыг юу гэдэг вэ?",
+    options:["Багана","Унь","Бүс"],
+    correct:1, delay:4000
+  },
+  {
+    title:"Голомт",
+    story:"Гэрийн голд байдаг дулаан гаргадаг зүйл юу вэ?",
+    options:["Ор","Ширээ","Зуух"],
+    correct:2, delay:2700
+  },
+  {
+    title:"Эсгий",
+    story:"Монгол гэрийг бүрхдэг үндсэн материал юу вэ?",
+    options:["Эсгий","Төмөр","Шил"],
+    correct:0, delay:3100
+  },
+  {
+    title:"Багана",
+    story:"Тооноог тулж байдаг босоо модыг юу гэдэг вэ?",
+    options:["Багана","Унь","Хана"],
+    correct:0, delay:3600
+  },
+  {
+    title:"Баруун тал",
+    story:"Монгол гэрийн баруун талд ихэвчлэн хэний эд зүйлс байдаг вэ?",
+    options:["Эрэгтэй хүнийх","Эмэгтэй хүнийх","Хүүхдийнх"],
+    correct:0, delay:2500
+  },
+  {
+    title:"Зүүн тал",
+    story:"Монгол гэрийн зүүн талд ихэвчлэн хэний эд зүйлс байдаг вэ?",
+    options:["Эрэгтэй хүнийх","Эмэгтэй хүнийх","Зочных"],
+    correct:1, delay:3300
+  },
+  {
+    title:"Хоймор",
+    story:"Гэрийн хамгийн хүндэт байрлал хаана байдаг вэ?",
+    options:["Хаалганы дэргэд","Хоймор","Галын ард"],
+    correct:1, delay:2900
+  },
+  {
+    title:"Нүүдэллэх давуу тал",
+    story:"Монгол гэрийг нүүлгэн шилжүүлэхэд хамгийн чухал давуу тал нь юу вэ?",
+    options:["Хүнд жинтэй","Амархан задлаж угсардаг","Усанд хөвдөг"],
+    correct:1, delay:3400
+  },
+  {
+    title:"Бүслүүр",
+    story:"Монгол гэрийн бүслүүр ямар үүрэгтэй вэ?",
+    options:["Чимэглэх","Гэрийг бэхлэх","Халаах"],
+    correct:1, delay:3800
+  },
+  {
+    title:"Өрх",
+    story:"Гэрийн орой дээрх эсгийг юу гэж нэрлэдэг вэ?",
+    options:["Өрх","Туурга","Дээвэр"],
+    correct:0, delay:2600
+  },
+  {
+    title:"Уламжлалт хаалга",
+    story:"Монгол гэрийн уламжлалт модон хаалга ихэвчлэн ямар өнгөтэй байдаг вэ?",
+    options:["Улаан, улбар өнгөөр будсан байдаг","Хар","Цагаан"],
+    correct:0, delay:3000
+  },
+  {
+    title:"Тоононы бэлгэдэл",
+    story:"Тооно нь уламжлалт ёс заншлын хувьд юуг бэлгэддэг вэ?",
+    options:["Тэнгэр, нарны холбоог","Гол мөрнийг","Уулсыг"],
+    correct:0, delay:3200
+  },
+  {
+    title:"Хүндэт зочин",
+    story:"Хойморт хэн суух эрхтэй байдаг вэ?",
+    options:["Зочин болон ахмад настан","Бага насны хүүхэд","Малчин"],
+    correct:0, delay:3500
+  },
+  {
+    title:"Бүтцийн дараалал",
+    story:"Монгол гэрийн үндсэн бүтцийг бүрдүүлэгч хэсгүүдийн зөв дараалал аль нь вэ?",
+    options:["Хана – Унь – Тооно","Тооно – Өрх – Багана","Унь – Хаалга – Өрх"],
+    correct:0, delay:2800
+  },
+  {
+    title:"Өргөө",
+    story:"XIII зуунд Монгол гэрийг өөрөөр юу гэж нэрлэдэг байсан бэ?",
+    options:["Өргөө","Асар","Сүм"],
+    correct:0, delay:3100
+  },
+  {
+    title:"Эцсийн асуулт",
+    story:"Монгол гэр яагаад олон зуун жилийн турш нүүдэлчдийн амьдралд тохирсон гэж үздэг вэ?",
+    options:[
+      "Төмрөөр хийгдсэн",
+      "Хурдан барьж буулгаж, дулаан хадгалдаг",
+      "Усанд хөвдөг"
+    ],
+    correct:1, delay:4200
+  }
+];
+
+/* ===== ТОГЛООМЫН ТӨЛӨВ ===== */
+let state = {
+  nickname: '',
+  avatar: null,
+  currentLevel: 0,
+  lives: 3,
+  wrongCount: 0,
+  isTransitioning: false,
+  ambientNodes: null
+};
+
+/* ===== АВАТАР ГРИД ҮҮСГЭХ ===== */
+const avatarGrid = document.getElementById('avatarGrid');
+avatars.forEach(av => {
+  const card = document.createElement('div');
+  card.className = 'avatar-card';
+  card.dataset.id = av.id;
+  card.innerHTML = `<i class="fa-solid ${av.icon} av-icon" style="color:${av.color}"></i><span class="av-name">${av.name}</span>`;
+  card.addEventListener('click', () => selectAvatar(av.id));
+  avatarGrid.appendChild(card);
+});
+
+function selectAvatar(id) {
+  state.avatar = avatars.find(a => a.id === id);
+  document.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.avatar-card[data-id="${id}"]`).classList.add('selected');
+  checkLoginReady();
+}
+
+const nickInput = document.getElementById('nicknameInput');
+nickInput.addEventListener('input', checkLoginReady);
+
+function checkLoginReady() {
+  document.getElementById('startBtn').disabled = !(state.avatar && nickInput.value.trim().length >= 2);
+}
+
+/* ===== АУДИО СИСТЕМ ===== */
+let audioCtx = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function startAmbient() {
+  if (!audioCtx) return;
+  // Бага долгионтой аймшигт орчин
+  const osc1 = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const lfo = audioCtx.createOscillator();
+  const lfoGain = audioCtx.createGain();
+
+  osc1.type = 'sawtooth'; osc1.frequency.value = 55;
+  osc2.type = 'sine'; osc2.frequency.value = 82;
+  lfo.type = 'sine'; lfo.frequency.value = 0.2;
+  lfoGain.gain.value = 8;
+  gain.gain.value = 0.04;
+
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc1.frequency);
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc1.start(); osc2.start(); lfo.start();
+  state.ambientNodes = { osc1, osc2, lfo, gain };
+}
+
+function stopAmbient() {
+  if (state.ambientNodes) {
+    try {
+      state.ambientNodes.osc1.stop();
+      state.ambientNodes.osc2.stop();
+      state.ambientNodes.lfo.stop();
+    } catch(e) {}
+    state.ambientNodes = null;
+  }
+}
+
+function playScream() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  // Олон долгион хослуулан аймшигт дуу үүсгэх
+  const freqs = [420, 680, 1100, 550, 850];
+  freqs.forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = i < 2 ? 'sawtooth' : 'square';
+    osc.frequency.setValueAtTime(f, now);
+    osc.frequency.linearRampToValueAtTime(f * 1.5 + Math.random() * 200, now + 0.08);
+    osc.frequency.linearRampToValueAtTime(f * 0.8, now + 1.0);
+    g.gain.setValueAtTime(0.12, now);
+    g.gain.linearRampToValueAtTime(0.25, now + 0.05);
+    g.gain.linearRampToValueAtTime(0, now + 1.2);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 1.3);
+  });
+  // Цагаан дуу (noise burst)
+  const bufLen = Math.floor(audioCtx.sampleRate * 1.2);
+  const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const ng = audioCtx.createGain();
+  ng.gain.setValueAtTime(0.2, now);
+  ng.gain.linearRampToValueAtTime(0, now + 0.8);
+  src.connect(ng); ng.connect(audioCtx.destination);
+  src.start(now);
+}
+
+function playCorrectSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(523, now);
+  osc.frequency.setValueAtTime(659, now + 0.12);
+  osc.frequency.setValueAtTime(784, now + 0.24);
+  g.gain.setValueAtTime(0.15, now);
+  g.gain.linearRampToValueAtTime(0, now + 0.5);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.5);
+}
+
+/* ===== ГЭРИЙН ДOTOРХ ФОН ===== */
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+let particles = [];
+
+function resizeBg() {
+  bgCanvas.width = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeBg);
+resizeBg();
+
+// Финкэрийн бөөмс (цүүлсэн шороо)
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < 40; i++) {
+    particles.push({
+      x: Math.random() * bgCanvas.width,
+      y: Math.random() * bgCanvas.height,
+      r: Math.random() * 2 + 0.5,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: -Math.random() * 0.5 - 0.1,
+      alpha: Math.random() * 0.4 + 0.1
+    });
+  }
+}
+initParticles();
+
+let bgTime = 0;
+function drawBg() {
+  const w = bgCanvas.width, h = bgCanvas.height;
+  bgTime += 0.016;
+
+  // Голомтын гэрэлт радиал градиент
+  const flicker = 0.85 + Math.sin(bgTime * 3) * 0.08 + Math.sin(bgTime * 7) * 0.05;
+  const grad = bgCtx.createRadialGradient(w/2, h*0.85, 10, w/2, h*0.5, Math.max(w,h)*0.7);
+  grad.addColorStop(0, `rgba(212,160,23,${0.12 * flicker})`);
+  grad.addColorStop(0.3, `rgba(139,69,19,${0.06 * flicker})`);
+  grad.addColorStop(1, 'rgba(10,6,4,1)');
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, w, h);
+
+  // Гэрийн хананы дугуй хэлбэр зааг
+  bgCtx.strokeStyle = `rgba(139,69,19,${0.15 * flicker})`;
+  bgCtx.lineWidth = 2;
+  bgCtx.beginPath();
+  bgCtx.ellipse(w/2, h*0.45, w*0.38, h*0.38, 0, 0, Math.PI * 2);
+  bgCtx.stroke();
+
+  // Тооно (дээгүүр дугуй)
+  bgCtx.strokeStyle = `rgba(212,160,23,${0.1 * flicker})`;
+  bgCtx.lineWidth = 1.5;
+  bgCtx.beginPath();
+  bgCtx.arc(w/2, h*0.08, Math.min(w,h)*0.06, 0, Math.PI*2);
+  bgCtx.stroke();
+  bgCtx.beginPath();
+  bgCtx.arc(w/2, h*0.08, Math.min(w,h)*0.04, 0, Math.PI*2);
+  bgCtx.stroke();
+
+  // Хаалга (доод тал)
+  bgCtx.strokeStyle = `rgba(139,69,19,${0.12 * flicker})`;
+  bgCtx.lineWidth = 2;
+  bgCtx.strokeRect(w/2 - 40, h*0.78, 80, h*0.18);
+
+  // Бөөмс
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
+    if (p.x < -10) p.x = w + 10;
+    if (p.x > w + 10) p.x = -10;
+    bgCtx.beginPath();
+    bgCtx.arc(p.x, p.y, Math.max(0.5, p.r), 0, Math.PI * 2);
+    bgCtx.fillStyle = `rgba(212,160,23,${p.alpha * flicker})`;
+    bgCtx.fill();
+  });
+
+  // Монгол хээ зааг (гоёмсог дэвсгэр)
+  bgCtx.strokeStyle = `rgba(212,160,23,0.04)`;
+  bgCtx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 + bgTime * 0.05;
+    const rx = w * 0.3, ry = h * 0.3;
+    bgCtx.beginPath();
+    bgCtx.ellipse(w/2, h*0.45, rx, ry, angle, 0, Math.PI * 0.5);
+    bgCtx.stroke();
+  }
+
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+/* ===== ЖАМПСКЕЙР ЗУРАХ ===== */
+const jumpscareCanvas = document.getElementById('jumpscareCanvas');
+const jsCtx = jumpscareCanvas.getContext('2d');
+
+const scareColors = [
+  { bg:'#1a0000', face:'#3d1c02', eye:'#ff0000', mouth:'#ff3300', accent:'#ff6600' },
+  { bg:'#000a1a', face:'#0a1a3d', eye:'#00ff44', mouth:'#00ff88', accent:'#00cc66' },
+  { bg:'#1a000a', face:'#3d0020', eye:'#ff0066', mouth:'#ff0099', accent:'#cc0055' },
+  { bg:'#0a1a00', face:'#1a3d0a', eye:'#ffff00', mouth:'#ffcc00', accent:'#ff9900' },
+  { bg:'#1a0d00', face:'#3d2a02', eye:'#ff4400', mouth:'#ff8800', accent:'#ffaa00' },
+  { bg:'#0d001a', face:'#2a004d', eye:'#cc00ff', mouth:'#9900ff', accent:'#7700cc' },
+  { bg:'#1a0000', face:'#4d0000', eye:'#ff0044', mouth:'#cc0033', accent:'#ff0022' }
+];
+
+function drawJumpscare(levelIdx) {
+  jumpscareCanvas.width = window.innerWidth;
+  jumpscareCanvas.height = window.innerHeight;
+  const w = jumpscareCanvas.width, h = jumpscareCanvas.height;
+  const cx = w / 2, cy = h / 2;
+  const sc = scareColors[levelIdx % scareColors.length];
+  const size = Math.min(w, h) * 0.38;
+  const type = levelIdx % 7;
+
+  // Фон
+  jsCtx.fillStyle = sc.bg;
+  jsCtx.fillRect(0, 0, w, h);
+
+  // Цацрагт градиент
+  const rg = jsCtx.createRadialGradient(cx, cy, size * 0.1, cx, cy, size * 1.5);
+  rg.addColorStop(0, sc.face);
+  rg.addColorStop(1, sc.bg);
+  jsCtx.fillStyle = rg;
+  jsCtx.fillRect(0, 0, w, h);
+
+  // Толгойн хэлбэр
+  jsCtx.save();
+  jsCtx.translate(cx, cy);
+  const headW = size * (0.85 + (type % 3) * 0.1);
+  const headH = size * (0.95 + (type % 2) * 0.1);
+
+  jsCtx.beginPath();
+  jsCtx.moveTo(-headW/2, -headH * 0.15);
+  jsCtx.bezierCurveTo(-headW/2 - size*0.08, -headH/2, headW/2 + size*0.08, -headH/2, headW/2, -headH*0.15);
+  jsCtx.bezierCurveTo(headW/2 + size*0.05, headH*0.1, headW/3, headH/2, 0, headH/2);
+  jsCtx.bezierCurveTo(-headW/3, headH/2, -headW/2 - size*0.05, headH*0.1, -headW/2, -headH*0.15);
+  jsCtx.fillStyle = sc.face;
+  jsCtx.fill();
+  jsCtx.strokeStyle = sc.accent;
+  jsCtx.lineWidth = 2;
+  jsCtx.stroke();
+
+  // Нүд (төвөгтэй, гэрэлтэй)
+  const eyeY = -headH * 0.08;
+  const eyeSpread = headW * 0.25;
+  const eyeSize = size * (0.12 + type * 0.02);
+
+  for (let side = -1; side <= 1; side += 2) {
+    const ex = side * eyeSpread;
+    // Нүдний гэрэл
+    const eg = jsCtx.createRadialGradient(ex, eyeY, 0, ex, eyeY, eyeSize * 1.5);
+    eg.addColorStop(0, sc.eye);
+    eg.addColorStop(0.5, sc.eye + '88');
+    eg.addColorStop(1, 'transparent');
+    jsCtx.fillStyle = eg;
+    jsCtx.fillRect(ex - eyeSize*2, eyeY - eyeSize*2, eyeSize*4, eyeSize*4);
+
+    // Нүдний нүх
+    jsCtx.beginPath();
+    if (type < 3) {
+      jsCtx.ellipse(ex, eyeY, eyeSize, eyeSize * 1.3, 0, 0, Math.PI * 2);
+    } else {
+      jsCtx.ellipse(ex, eyeY, eyeSize * 1.2, eyeSize * 0.8, side * 0.3, 0, Math.PI * 2);
+    }
+    jsCtx.fillStyle = '#000';
+    jsCtx.fill();
+    jsCtx.strokeStyle = sc.eye;
+    jsCtx.lineWidth = 3;
+    jsCtx.stroke();
+
+    // Цагариг
+    jsCtx.beginPath();
+    jsCtx.arc(ex, eyeY, eyeSize * 0.35, 0, Math.PI * 2);
+    jsCtx.fillStyle = sc.eye;
+    jsCtx.fill();
+
+    // Жижиг цагариг
+    jsCtx.beginPath();
+    jsCtx.arc(ex + eyeSize*0.15, eyeY - eyeSize*0.15, eyeSize * 0.12, 0, Math.PI * 2);
+    jsCtx.fillStyle = '#fff';
+    jsCtx.fill();
+  }
+
+  // Амин хоолой/ам
+  const mouthY = headH * 0.22;
+  const mouthW = headW * (0.35 + type * 0.05);
+  const mouthH = size * (0.15 + type * 0.03);
+
+  jsCtx.beginPath();
+  jsCtx.ellipse(0, mouthY, mouthW, mouthH, 0, 0, Math.PI * 2);
+  jsCtx.fillStyle = '#000';
+  jsCtx.fill();
+  jsCtx.strokeStyle = sc.mouth;
+  jsCtx.lineWidth = 3;
+  jsCtx.stroke();
+
+  // Шүд
+  const teethCount = 6 + type;
+  const teethW = (mouthW * 1.6) / teethCount;
+  for (let i = 0; i < teethCount; i++) {
+    const tx = -mouthW + teethW/2 + i * teethW;
+    const isTop = i % 2 === 0;
+    const th = mouthH * (0.3 + Math.random() * 0.4);
+    jsCtx.beginPath();
+    jsCtx.moveTo(tx - teethW*0.35, mouthY + (isTop ? -mouthH*0.3 : mouthH*0.3));
+    jsCtx.lineTo(tx, mouthY + (isTop ? -mouthH*0.3 - th : mouthH*0.3 + th));
+    jsCtx.lineTo(tx + teethW*0.35, mouthY + (isTop ? -mouthH*0.3 : mouthH*0.3));
+    jsCtx.closePath();
+    jsCtx.fillStyle = isTop ? '#e8dcc8' : '#d4c4a8';
+    jsCtx.fill();
+    jsCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+    jsCtx.lineWidth = 1;
+    jsCtx.stroke();
+  }
+
+  // Төрөл бүрийн нэмэлт элементүүд
+  if (type === 0 || type === 5) {
+    // Цусны судас
+    for (let i = 0; i < 8; i++) {
+      jsCtx.beginPath();
+      const sx = (Math.random()-0.5) * headW;
+      const sy = (Math.random()-0.5) * headH;
+      jsCtx.moveTo(sx, sy);
+      for (let j = 0; j < 4; j++) {
+        jsCtx.lineTo(sx + (Math.random()-0.5)*size*0.3, sy + (Math.random()-0.5)*size*0.2);
+      }
+      jsCtx.strokeStyle = `rgba(180,0,0,${0.3+Math.random()*0.4})`;
+      jsCtx.lineWidth = 1 + Math.random() * 2;
+      jsCtx.stroke();
+    }
+  }
+  if (type === 1 || type === 4) {
+    // Эвэр
+    for (let side = -1; side <= 1; side += 2) {
+      jsCtx.beginPath();
+      const hx = side * headW * 0.3;
+      const hy = -headH * 0.4;
+      jsCtx.moveTo(hx, hy);
+      jsCtx.quadraticCurveTo(hx + side*size*0.2, hy - size*0.3, hx + side*size*0.15, hy - size*0.45);
+      jsCtx.quadraticCurveTo(hx + side*size*0.05, hy - size*0.25, hx + side*size*0.08, hy - size*0.15);
+      jsCtx.fillStyle = sc.accent;
+      jsCtx.fill();
+    }
+  }
+  if (type === 2 || type === 6) {
+    // Нүдний доорх цус
+    for (let side = -1; side <= 1; side += 2) {
+      for (let d = 0; d < 3; d++) {
+        jsCtx.beginPath();
+        const dx = side * eyeSpread + (Math.random()-0.5)*eyeSize;
+        const dy = eyeY + eyeSize + d * 8;
+        jsCtx.moveTo(dx, dy);
+        jsCtx.quadraticCurveTo(dx + (Math.random()-0.5)*6, dy + 15 + Math.random()*10, dx + (Math.random()-0.5)*4, dy + 30 + Math.random()*15);
+        jsCtx.strokeStyle = `rgba(150,0,0,${0.5+Math.random()*0.3})`;
+        jsCtx.lineWidth = 2 + Math.random()*2;
+        jsCtx.stroke();
+      }
+    }
+  }
+  if (type === 3) {
+    // Нэмэлт жижиг нүд (3 дахь нүд)
+    const tx = 0, ty = -headH * 0.28;
+    const ts = eyeSize * 0.6;
+    jsCtx.beginPath();
+    jsCtx.arc(tx, ty, ts, 0, Math.PI * 2);
+    jsCtx.fillStyle = '#000';
+    jsCtx.fill();
+    jsCtx.strokeStyle = sc.eye;
+    jsCtx.lineWidth = 2;
+    jsCtx.stroke();
+    jsCtx.beginPath();
+    jsCtx.arc(tx, ty, ts * 0.3, 0, Math.PI * 2);
+    jsCtx.fillStyle = sc.eye;
+    jsCtx.fill();
+  }
+
+  jsCtx.restore();
+
+  // Шумуул нүд (static noise)
+  const imgData = jsCtx.getImageData(0, 0, w, h);
+  const px = imgData.data;
+  for (let i = 0; i < px.length; i += 4) {
+    if (Math.random() < 0.08) {
+      const noise = Math.random() * 80;
+      px[i] = Math.min(255, px[i] + noise);
+      px[i+1] = Math.min(255, px[i+1] + noise * 0.3);
+      px[i+2] = Math.min(255, px[i+2] + noise * 0.3);
+    }
+  }
+  jsCtx.putImageData(imgData, 0, 0);
+
+  // Скан мөр
+  jsCtx.fillStyle = 'rgba(0,0,0,0.08)';
+  for (let y = 0; y < h; y += 3) {
+    jsCtx.fillRect(0, y, w, 1);
+  }
+
+  // Виньетка (хоёр тийш баар)
+  const vg = jsCtx.createRadialGradient(cx, cy, size * 0.5, cx, cy, Math.max(w, h) * 0.7);
+  vg.addColorStop(0, 'transparent');
+  vg.addColorStop(1, 'rgba(0,0,0,0.7)');
+  jsCtx.fillStyle = vg;
+  jsCtx.fillRect(0, 0, w, h);
+}
+
+/* ===== ЖАМПСКЕЙР ХАРУУЛАХ ===== */
+function showJumpscare(levelIdx) {
+  const overlay = document.getElementById('jumpscareOverlay');
+  const flash = document.getElementById('flashDiv');
+
+  // Цагаан цахилгаан
+  flash.style.display = 'block';
+  flash.style.animation = 'none';
+  flash.offsetHeight; // reflow
+  flash.style.animation = 'flashAnim .15s ease-out';
+
+  drawJumpscare(levelIdx);
+  overlay.classList.add('active');
+  jumpscareCanvas.classList.add('shake');
+
+  playScream();
+
+  // 1.5 секундын дараа хаах
+  setTimeout(() => {
+    overlay.classList.remove('active');
+    jumpscareCanvas.classList.remove('shake');
+    flash.style.display = 'none';
+
+    // Амь хасах
+    state.lives--;
+    updateLives();
+
+    if (state.lives <= 0) {
+      setTimeout(() => gameOver(), 300);
+    } else {
+      // Анах сэргээх - options дахин идэвхжүүлэх
+      enableOptions();
+    }
+  }, 1500);
+}
+
+/* ===== ДЭЛГЭЦүүДИЙН УДИРДЛАГА ===== */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startGame() {
+  initAudio();
+  startAmbient();
+  state.currentLevel = 0;
+  state.lives = 3;
+  state.wrongCount = 0;
+  state.isTransitioning = false;
+
+  // Мини аватар
+  const miniAv = document.getElementById('miniAvatar');
+  miniAv.style.background = state.avatar.bg;
+  miniAv.style.border = `2px solid ${state.avatar.color}`;
+  miniAv.innerHTML = `<i class="fa-solid ${state.avatar.icon}" style="color:${state.avatar.color};font-size:13px;"></i>`;
+  document.getElementById('miniNick').textContent = state.nickname;
+
+  updateLives();
+  loadLevel(0);
+  showScreen('gameScreen');
+}
+
+function loadLevel(idx) {
+  if (idx >= levels.length) {
+    victory();
+    return;
+  }
+  state.currentLevel = idx;
+  state.isTransitioning = false;
+  const lv = levels[idx];
+
+  document.getElementById('levelBadge').textContent = `Түвшин ${idx + 1}/${levels.length}`;
+  document.getElementById('levelTitle').textContent = lv.title;
+  document.getElementById('levelStory').textContent = lv.story;
+  document.getElementById('hintText').textContent = `Зөвлөгөө: ${lv.hint}`;
+
+  const container = document.getElementById('optionsContainer');
+  container.innerHTML = '';
+  const nums = ['I', 'II', 'III'];
+  lv.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span class="opt-num">${nums[i]}</span><span>${opt}</span>`;
+    btn.addEventListener('click', () => handleAnswer(i, btn));
+    container.appendChild(btn);
+  });
+
+  hideWarning();
+}
+
+function handleAnswer(idx, btn) {
+  if (state.isTransitioning) return;
+  const lv = levels[state.currentLevel];
+
+  if (idx === lv.correct) {
+    // Зөв хариулт
+    btn.classList.add('correct');
+    playCorrectSound();
+    disableOptions();
+    state.isTransitioning = true;
+
+    setTimeout(() => {
+      loadLevel(state.currentLevel + 1);
+    }, 1000);
+  } else {
+    // Буруу хариулт
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    state.wrongCount++;
+    state.isTransitioning = true;
+    disableOptions();
+
+    // Анхааруулга харуулах
+    showWarning(`Буруу! ${lv.delay/1000} секундын дараа юм ирнэ...`);
+
+    // Тодорхой хугацааны дараа jumpscare
+    setTimeout(() => {
+      hideWarning();
+      showJumpscare(state.currentLevel);
+    }, lv.delay);
+  }
+}
+
+function disableOptions() {
+  document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+}
+function enableOptions() {
+  state.isTransitioning = false;
+  const lv = levels[state.currentLevel];
+  document.querySelectorAll('.option-btn').forEach(b => {
+    if (!b.classList.contains('wrong')) {
+      b.disabled = false;
+    }
+  });
+}
+
+function updateLives() {
+  const container = document.getElementById('livesDisplay');
+  container.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const heart = document.createElement('i');
+    heart.className = `fa-solid fa-heart heart ${i >= state.lives ? 'lost' : ''}`;
+    container.appendChild(heart);
+  }
+}
+
+function showWarning(msg) {
+  const el = document.getElementById('warningMsg');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function hideWarning() {
+  document.getElementById('warningMsg').classList.remove('show');
+}
+
+function gameOver() {
+  stopAmbient();
+  document.getElementById('goText').textContent =
+    `${state.nickname}, та ${state.currentLevel + 1}-р түвшинд амиа алдлав. Буруу сонголт: ${state.wrongCount}`;
+  showScreen('gameOverScreen');
+}
+
+function victory() {
+  stopAmbient();
+  document.getElementById('statLevel').textContent = '20';
+  document.getElementById('statLives').textContent = state.lives;
+  document.getElementById('statWrong').textContent = state.wrongCount;
+  showScreen('victoryScreen');
+}
+
+/* ===== ҮЙЛ ЯВДАЛ БИНДИНГ ===== */
+document.getElementById('startBtn').addEventListener('click', () => {
+  state.nickname = nickInput.value.trim();
+  startGame();
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  showScreen('loginScreen');
+});
+
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+  showScreen('loginScreen');
+});
+
+// Enter товчоор эхлэх
+nickInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !document.getElementById('startBtn').disabled) {
+    document.getElementById('startBtn').click();
+  }
+});
+</script>
+</body>
+</html>
